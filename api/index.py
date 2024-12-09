@@ -1,54 +1,45 @@
-from flask import Flask, request, jsonify # type: ignore
+import streamlit as st
 import joblib
 import numpy as np
 
-app = Flask(__name__, template_folder="templates")
+# Load the model and scaler
+model = joblib.load('./models/logistic_regression_model.pkl')
+scaler = joblib.load('./models/scaler.pkl')
 
+# Streamlit app interface
+def main():
+    st.title("Logistic Regression Model Prediction")
 
-MODEL_PATH = './models/logistic_regression_model.pkl'
-SCALER_PATH = './models/scaler.pkl'
+    st.write("Enter the features below to make a prediction:")
 
-model = joblib.load(MODEL_PATH)
-scaler = joblib.load(SCALER_PATH)
-
-
-@app.route("/", methods=["GET"])
-def home():
-    """Root endpoint with API information."""
-    return jsonify({
-        "description": "Welcome to the Next.js Flask API!",
-        "message": "Please use the form on the Next.js frontend (http://localhost:3000)."
-    })
-
-
-@app.route("/api/predict", methods=["POST", "GET"])
-def predict():
-    
-    if request.method == "GET":
-        return jsonify({"error": "GET requests are not allowed."}), 405
-    
-    """Prediction endpoint."""
+    # User inputs for features
     try:
-        # Extract features from the request
-        data = request.get_json()
-        features = np.array(data.get('features', [])).reshape(1, -1)
+        feature_1 = st.number_input("Feature 1", min_value=0.0, step=0.01)
+        feature_2 = st.number_input("Feature 2", min_value=0.0, step=0.01)
+        feature_3 = st.number_input("Feature 3", min_value=0.0, step=0.01)
+        feature_4 = st.number_input("Feature 4", min_value=0.0, step=0.01)
 
-        if features.size == 0:
-            raise ValueError("Features cannot be empty.")
+        # Creating a list of features from the user input
+        features = np.array([feature_1, feature_2, feature_3, feature_4]).reshape(1, -1)
+    except ValueError:
+        st.error("Please enter valid numerical values for all features.")
+        return
 
-        # Scale features and make predictions
-        features_scaled = scaler.transform(features)
-        prediction = model.predict(features_scaled)
-        probability = model.predict_proba(features_scaled)[:, 1]
+    # Button to trigger prediction
+    if st.button("Predict"):
+        try:
+            # Scale the features
+            features_scaled = scaler.transform(features)
 
-        # Return prediction and probability
-        return jsonify({
-            "prediction": int(prediction[0]),
-            "probability": float(probability[0])
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+            # Make prediction
+            prediction = model.predict(features_scaled)
+            probability = model.predict_proba(features_scaled)[:, 1]
 
+            # Show the result
+            st.subheader(f"Prediction: {int(prediction[0])}")
+            st.subheader(f"Probability: {float(probability[0]):.2f}")
+        except Exception as e:
+            st.error(f"Error: {e}")
 
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    main()
